@@ -1,0 +1,10 @@
+# logs
+logs
+*.logs
+
+# Editor directory and files
+.DS_Store
+static/.DS_Store
+
+# static files
+static/sounds/*.mp3

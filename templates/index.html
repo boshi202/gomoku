@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五子棋</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: url('/static/images/galaxy_bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+            font-family: 'Microsoft YaHei', sans-serif;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* 添加一个渐变叠加层，使背景更加深邃 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, 
+                rgba(0,0,0,0.3) 0%, 
+                rgba(0,0,0,0.6) 50%,
+                rgba(0,0,0,0.8) 100%);
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .game-container {
+            background: linear-gradient(45deg, 
+                rgba(139, 69, 19, 0.85), 
+                rgba(222, 184, 135, 0.85), 
+                rgba(139, 69, 19, 0.85));
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 50px rgba(255,255,255,0.2);
+            position: relative;
+            z-index: 2;
+            border: 2px solid rgba(92, 51, 23, 0.8);
+            backdrop-filter: blur(8px);
+        }
+        
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 10px;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.3);
+        }
+        
+        #board {
+            background: #E8C39E;
+            cursor: pointer;
+            position: relative;
+            z-index: 1;
+        }
+        
+        #fireworksCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 10;
+            opacity: 0.85;
+            mix-blend-mode: screen;
+        }
+        
+        .victory-text {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: #FFD700;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.6),
+                         0 0 40px rgba(255, 215, 0, 0.4);
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+        }
+        
+        .victory-text.show {
+            opacity: 1;
+        }
+        
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 1.2em;
+            color: #fff;
+            text-shadow: 0 0 15px rgba(255,255,255,0.7),
+                         0 0 30px rgba(255,255,255,0.4);
+        }
+        
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        
+        .reset-btn, .undo-btn {
+            padding: 10px 20px;
+            font-size: 1em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .reset-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .reset-btn:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+
+        .undo-btn {
+            background-color: #FFA500;
+            color: white;
+        }
+
+        .undo-btn:hover {
+            background-color: #FF8C00;
+            transform: scale(1.05);
+        }
+
+        .undo-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .sound-btn {
+            padding: 8px;
+            font-size: 1.2em;
+            background: none;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        .sound-btn::before {
+            content: '🔊';
+            font-size: 1.4em;
+            opacity: 0.9;
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+        
+        .sound-btn.muted::before {
+            content: '🔈';
+            opacity: 0.6;
+        }
+        
+        .sound-btn:hover {
+            transform: translateY(-50%) scale(1.1);
+            text-shadow: 0 0 15px rgba(255,255,255,0.5);
+        }
+        
+        .sound-btn:active {
+            transform: translateY(-50%) scale(0.95);
+        }
+        
+        .game-info {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 1em;
+            color: #fff;
+            text-shadow: 0 0 15px rgba(255,255,255,0.7),
+                         0 0 30px rgba(255,255,255,0.4);
+        }
+        
+        .thinking {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 1em;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .thinking.show {
+            opacity: 1;
+        }
+        
+        .last-move {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #ff0000;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 2;
+        }
+        
+        .draw-text {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: #4CAF50;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+        }
+        
+        .draw-text.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- 音效元素 -->
+    <audio id="pieceSound" src="/static/sounds/piece.wav" preload="auto"></audio>
+    <audio id="winSound" src="/static/sounds/win.wav" preload="auto"></audio>
+    <audio id="resetSound" src="/static/sounds/reset.wav" preload="auto"></audio>
+
+    <canvas id="fireworksCanvas"></canvas>
+    <div id="victoryText" class="victory-text"></div>
+    <div id="drawText" class="draw-text">平局！</div>
+    
+    <div class="game-container">
+        <canvas id="board" width="600" height="600"></canvas>
+        <div class="status" id="status">等待玩家（黑棋）下子</div>
+        <div class="controls">
+            <button class="reset-btn" onclick="resetGame()">重新开始</button>
+            <button class="undo-btn" onclick="undoMove()" id="undoBtn" disabled>落子有悔</button>
+            <button class="sound-btn" id="soundToggle" onclick="toggleSound()" aria-label="音效开关"></button>
+        </div>
+        <div class="game-info">
+            您执黑棋，电脑执白棋
+        </div>
+    </div>
+
+    <!-- 移除AI思考提示 -->
+
+    <script>
+        const canvas = document.getElementById('board');
+        const ctx = canvas.getContext('2d');
+        const BOARD_SIZE = 15;
+        const CELL_SIZE = canvas.width / BOARD_SIZE;
+        const PIECE_SIZE = CELL_SIZE * 0.4;
+        const GRID_PADDING = CELL_SIZE / 2; // 添加网格边距
+
+        let currentPlayer = 'black';
+        let soundEnabled = true;
+        let game_state = {
+            board: Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null)),
+            current_player: 'black'
+        };
+
+        // 音效相关
+        const pieceSound = document.getElementById('pieceSound');
+        const winSound = document.getElementById('winSound');
+        const resetSound = document.getElementById('resetSound');
+
+        // 动画相关变量
+        let ripples = [];
+        let hoverPos = null;
+        let boardGlow = {
+            angle: 0,
+            intensity: 0.2
+        };
+
+        // 添加木纹纹理缓存
+        let woodTextureCanvas;
+        let woodTextureCtx;
+
+        // 初始化木纹纹理
+        function initWoodTexture() {
+            woodTextureCanvas = document.createElement('canvas');
+            woodTextureCanvas.width = canvas.width;
+            woodTextureCanvas.height = canvas.height;
+            woodTextureCtx = woodTextureCanvas.getContext('2d');
+            
+            // 绘制底色渐变
+            const baseGradient = woodTextureCtx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            baseGradient.addColorStop(0, '#E8C39E');
+            baseGradient.addColorStop(0.3, '#DEB887');
+            baseGradient.addColorStop(0.7, '#DEB887');
+            baseGradient.addColorStop(1, '#E8C39E');
+            
+            woodTextureCtx.fillStyle = baseGradient;
+            woodTextureCtx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 添加细腻的木纹纹理
+            // 主要木纹层
+            for(let i = 0; i < canvas.width; i += 20) {
+                woodTextureCtx.beginPath();
+                woodTextureCtx.strokeStyle = 'rgba(139, 69, 19, 0.03)';
+                woodTextureCtx.lineWidth = 15;
+                const offsetX = Math.random() * 15;
+                const curve = Math.sin(i / 30) * 5;
+                
+                // 使用二次贝塞尔曲线创建自然的弧度
+                woodTextureCtx.moveTo(i + offsetX, 0);
+                woodTextureCtx.quadraticCurveTo(
+                    i + offsetX + curve, canvas.height / 2,
+                    i + offsetX, canvas.height
+                );
+                woodTextureCtx.stroke();
+            }
+            
+            // 次要木纹层
+            for(let i = 0; i < canvas.width; i += 10) {
+                woodTextureCtx.beginPath();
+                woodTextureCtx.strokeStyle = 'rgba(139, 69, 19, 0.02)';
+                woodTextureCtx.lineWidth = 8;
+                const offsetX = Math.random() * 10;
+                const curve = Math.sin(i / 20) * 3;
+                
+                woodTextureCtx.moveTo(i + offsetX, 0);
+                woodTextureCtx.quadraticCurveTo(
+                    i + offsetX + curve, canvas.height / 2,
+                    i + offsetX, canvas.height
+                );
+                woodTextureCtx.stroke();
+            }
+            
+            // 添加细微木纹
+            for(let i = 0; i < canvas.width; i += 5) {
+                woodTextureCtx.beginPath();
+                woodTextureCtx.strokeStyle = 'rgba(139, 69, 19, 0.01)';
+                woodTextureCtx.lineWidth = 3;
+                const offsetX = Math.random() * 5;
+                const curve = Math.sin(i / 10) * 2;
+                
+                woodTextureCtx.moveTo(i + offsetX, 0);
+                woodTextureCtx.quadraticCurveTo(
+                    i + offsetX + curve, canvas.height / 2,
+                    i + offsetX, canvas.height
+                );
+                woodTextureCtx.stroke();
+            }
+            
+            // 添加横向纹理
+            for(let i = 0; i < canvas.height; i += 30) {
+                woodTextureCtx.beginPath();
+                woodTextureCtx.strokeStyle = 'rgba(139, 69, 19, 0.015)';
+                woodTextureCtx.lineWidth = 10;
+                const offsetY = Math.random() * 20;
+                const curve = Math.sin(i / 40) * 5;
+                
+                woodTextureCtx.moveTo(0, i + offsetY);
+                woodTextureCtx.quadraticCurveTo(
+                    canvas.width / 2, i + offsetY + curve,
+                    canvas.width, i + offsetY
+                );
+                woodTextureCtx.stroke();
+            }
+            
+            // 添加木纹节点
+            for(let i = 0; i < 5; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const radius = Math.random() * 15 + 5;
+                
+                const gradient = woodTextureCtx.createRadialGradient(x, y, 0, x, y, radius);
+                gradient.addColorStop(0, 'rgba(139, 69, 19, 0.03)');
+                gradient.addColorStop(0.5, 'rgba(139, 69, 19, 0.02)');
+                gradient.addColorStop(1, 'rgba(139, 69, 19, 0)');
+                
+                woodTextureCtx.fillStyle = gradient;
+                woodTextureCtx.beginPath();
+                woodTextureCtx.arc(x, y, radius, 0, Math.PI * 2);
+                woodTextureCtx.fill();
+                
+                // 添加环状纹理
+                for(let j = 0; j < 3; j++) {
+                    woodTextureCtx.beginPath();
+                    woodTextureCtx.strokeStyle = 'rgba(139, 69, 19, 0.02)';
+                    woodTextureCtx.lineWidth = 1;
+                    woodTextureCtx.arc(x, y, radius * (0.6 + j * 0.2), 0, Math.PI * 2);
+                    woodTextureCtx.stroke();
+                }
+            }
+            
+            // 添加轻微的噪点纹理
+            const imageData = woodTextureCtx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const noise = Math.random() * 10 - 5;
+                data[i] = Math.min(255, Math.max(0, data[i] + noise));
+                data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise));
+                data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
+            }
+            woodTextureCtx.putImageData(imageData, 0, 0);
+        }
+
+        // 修改绘制棋盘函数
+        function drawBoard() {
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 使用缓存的木纹纹理
+            ctx.drawImage(woodTextureCanvas, 0, 0);
+            
+            // 添加柔和的光晕效果
+            const glowGradient = ctx.createRadialGradient(
+                canvas.width/2, canvas.height/2, 0,
+                canvas.width/2, canvas.height/2, canvas.width/1.5
+            );
+            glowGradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
+            glowGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = glowGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制网格线
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.lineWidth = 1;
+            
+            // 绘制横竖线
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                ctx.moveTo(GRID_PADDING, GRID_PADDING + CELL_SIZE * i);
+                ctx.lineTo(canvas.width - GRID_PADDING, GRID_PADDING + CELL_SIZE * i);
+                ctx.moveTo(GRID_PADDING + CELL_SIZE * i, GRID_PADDING);
+                ctx.lineTo(GRID_PADDING + CELL_SIZE * i, canvas.height - GRID_PADDING);
+            }
+            ctx.stroke();
+
+            // 绘制外边框
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(GRID_PADDING, GRID_PADDING, 
+                          canvas.width - 2 * GRID_PADDING, 
+                          canvas.height - 2 * GRID_PADDING);
+
+            // 绘制天元和星点
+            const stars = [[3, 3], [11, 3], [7, 7], [3, 11], [11, 11]];
+            stars.forEach(([x, y]) => {
+                ctx.beginPath();
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.arc(
+                    GRID_PADDING + x * CELL_SIZE,
+                    GRID_PADDING + y * CELL_SIZE,
+                    4, 0, Math.PI * 2
+                );
+                ctx.fill();
+                
+                // 添加星点光晕
+                const starGlow = ctx.createRadialGradient(
+                    GRID_PADDING + x * CELL_SIZE,
+                    GRID_PADDING + y * CELL_SIZE,
+                    2,
+                    GRID_PADDING + x * CELL_SIZE,
+                    GRID_PADDING + y * CELL_SIZE,
+                    6
+                );
+                starGlow.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
+                starGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = starGlow;
+                ctx.arc(
+                    GRID_PADDING + x * CELL_SIZE,
+                    GRID_PADDING + y * CELL_SIZE,
+                    6, 0, Math.PI * 2
+                );
+                ctx.fill();
+            });
+
+            // 绘制波纹效果
+            ripples = ripples.filter(ripple => {
+                ripple.update();
+                ripple.draw(ctx);
+                return ripple.alpha > 0;
+            });
+
+            // 绘制悬停预览
+            if (hoverPos) {
+                const [x, y] = hoverPos;
+                if (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && !game_state.board[y][x]) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.3;
+                    draw3DPiece(
+                        GRID_PADDING + x * CELL_SIZE,
+                        GRID_PADDING + y * CELL_SIZE,
+                        currentPlayer === 'black'
+                    );
+                    ctx.restore();
+                }
+            }
+        }
+
+        // 修改绘制棋子函数，增强3D效果
+        function draw3DPiece(x, y, isBlack, scale = 1) {
+            const scaledSize = PIECE_SIZE * scale;
+            const centerX = x;
+            const centerY = y;
+            
+            // 增强阴影效果
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.6)';
+            ctx.shadowBlur = 20;
+            ctx.shadowOffsetX = 4;
+            ctx.shadowOffsetY = 4;
+            
+            // 创建更丰富的渐变
+            const gradient = ctx.createRadialGradient(
+                centerX - scaledSize/3,
+                centerY - scaledSize/3,
+                0,
+                centerX,
+                centerY,
+                scaledSize
+            );
+            
+            if (isBlack) {
+                gradient.addColorStop(0, '#666');
+                gradient.addColorStop(0.3, '#333');
+                gradient.addColorStop(0.7, '#111');
+                gradient.addColorStop(1, '#000');
+            } else {
+                gradient.addColorStop(0, '#fff');
+                gradient.addColorStop(0.5, '#f8f8f8');
+                gradient.addColorStop(0.7, '#f0f0f0');
+                gradient.addColorStop(1, '#e8e8e8');
+            }
+            
+            // 绘制棋子主体
+            ctx.beginPath();
+            ctx.fillStyle = gradient;
+            ctx.arc(centerX, centerY, scaledSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 绘制更细腻的高光
+            const highlightGradient = ctx.createRadialGradient(
+                centerX - scaledSize/2,
+                centerY - scaledSize/2,
+                scaledSize/10,
+                centerX - scaledSize/3,
+                centerY - scaledSize/3,
+                scaledSize
+            );
+            
+            if (isBlack) {
+                highlightGradient.addColorStop(0, 'rgba(255,255,255,0.5)');
+                highlightGradient.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+                highlightGradient.addColorStop(1, 'rgba(255,255,255,0)');
+            } else {
+                highlightGradient.addColorStop(0, 'rgba(255,255,255,0.9)');
+                highlightGradient.addColorStop(0.5, 'rgba(255,255,255,0.6)');
+                highlightGradient.addColorStop(1, 'rgba(255,255,255,0.3)');
+            }
+            
+            ctx.beginPath();
+            ctx.fillStyle = highlightGradient;
+            ctx.arc(centerX, centerY, scaledSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 添加棋子边缘光晕
+            const edgeGlow = ctx.createRadialGradient(
+                centerX,
+                centerY,
+                scaledSize * 0.9,
+                centerX,
+                centerY,
+                scaledSize * 1.1
+            );
+            edgeGlow.addColorStop(0, isBlack ? 'rgba(50,50,50,0.5)' : 'rgba(255,255,255,0.5)');
+            edgeGlow.addColorStop(1, 'rgba(0,0,0,0)');
+            
+            ctx.beginPath();
+            ctx.fillStyle = edgeGlow;
+            ctx.arc(centerX, centerY, scaledSize * 1.1, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        // 修改更新棋盘函数
+        function updateBoard(data) {
+            if (typeof data === 'object' && data !== null) {
+                // 如果传入的是对象，使用data.board
+                if (data.board) {
+                    game_state.board = data.board;
+                } else {
+                    // 如果直接传入的是棋盘数据
+                    game_state.board = data;
+                }
+            }
+            
+            drawBoard();
+            
+            // 绘制所有棋子
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    if (game_state.board[row][col]) {
+                        const x = GRID_PADDING + col * CELL_SIZE;
+                        const y = GRID_PADDING + row * CELL_SIZE;
+                        draw3DPiece(x, y, game_state.board[row][col] === 'black');
+                    }
+                }
+            }
+            
+            // 显示最后一步
+            if (data.last_move) {
+                showLastMove(data.last_move[0], data.last_move[1]);
+            }
+            
+            // 更新游戏状态
+            if (data.game_over) {
+                gameEnded = true;
+                if (data.status === 'draw') {
+                    document.getElementById('drawText').classList.add('show');
+                }
+            }
+        }
+
+        // 初始化烟花画布
+        const fireworksCanvas = document.getElementById('fireworksCanvas');
+        fireworksCanvas.width = window.innerWidth;
+        fireworksCanvas.height = window.innerHeight;
+        const fireworksCtx = fireworksCanvas.getContext('2d');
+        
+        // 烟花粒子类
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.velocity = {
+                    x: (Math.random() - 0.5) * 12,
+                    y: (Math.random() - 0.5) * 12 - 4
+                };
+                this.gravity = 0.15;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.02 + 0.015; // 稍微减慢衰减速度
+                this.size = Math.random() * 2.5 + 1.5; // 增加粒子大小
+            }
+
+            draw() {
+                fireworksCtx.save();
+                fireworksCtx.globalAlpha = this.alpha;
+                fireworksCtx.globalCompositeOperation = 'screen'; // 使用screen混合模式让颜色更亮
+                
+                // 外部光晕 - 更大更亮
+                const outerGlow = this.color.replace(/[\d.]+\)$/g, '0.4)');
+                fireworksCtx.fillStyle = outerGlow;
+                fireworksCtx.beginPath();
+                fireworksCtx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2);
+                fireworksCtx.fill();
+                
+                // 中间光晕
+                const middleGlow = this.color.replace(/[\d.]+\)$/g, '0.6)');
+                fireworksCtx.fillStyle = middleGlow;
+                fireworksCtx.beginPath();
+                fireworksCtx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+                fireworksCtx.fill();
+                
+                // 核心粒子 - 使用纯白色
+                fireworksCtx.fillStyle = '#ffffff';
+                fireworksCtx.beginPath();
+                fireworksCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                fireworksCtx.fill();
+                
+                // 添加额外的高光点
+                fireworksCtx.fillStyle = '#ffffff';
+                fireworksCtx.globalAlpha = this.alpha * 0.8;
+                fireworksCtx.beginPath();
+                fireworksCtx.arc(this.x, this.y, this.size * 0.5, 0, Math.PI * 2);
+                fireworksCtx.fill();
+                
+                fireworksCtx.restore();
+            }
+
+            update() {
+                this.velocity.y += this.gravity;
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+                this.alpha -= this.decay;
+                
+                return this.alpha > 0;
+            }
+        }
+        
+        // 修改轨迹粒子类以使用继承的颜色
+        class TrailParticle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.alpha = 0.8;  // 增加初始透明度
+                this.size = Math.random() * 1 + 0.5;  // 减小粒子大小
+                this.decay = 0.01;  // 降低衰减速度
+                
+                // 添加轻微的移动效果
+                this.velocity = {
+                    x: (Math.random() - 0.5) * 0.5,
+                    y: (Math.random() - 0.5) * 0.5
+                };
+            }
+
+            draw() {
+                fireworksCtx.save();
+                fireworksCtx.globalAlpha = this.alpha;
+                
+                // 增强发光效果
+                fireworksCtx.shadowColor = this.color;
+                fireworksCtx.shadowBlur = 25;
+                fireworksCtx.shadowOffsetX = 0;
+                fireworksCtx.shadowOffsetY = 0;
+                
+                // 绘制外部光晕
+                const outerGlow = this.color.replace(/[\d.]+\)$/g, '0.2)');
+                fireworksCtx.fillStyle = outerGlow;
+                fireworksCtx.beginPath();
+                fireworksCtx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2);
+                fireworksCtx.fill();
+                
+                // 绘制中间光晕
+                const middleGlow = this.color.replace(/[\d.]+\)$/g, '0.4)');
+                fireworksCtx.fillStyle = middleGlow;
+                fireworksCtx.beginPath();
+                fireworksCtx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+                fireworksCtx.fill();
+                
+                // 绘制内部光晕
+                const innerGlow = this.color.replace(/[\d.]+\)$/g, '0.8)');
+                fireworksCtx.fillStyle = innerGlow;
+                fireworksCtx.beginPath();
+                fireworksCtx.arc(this.x, this.y, this.size * 1.3, 0, Math.PI * 2);
+                fireworksCtx.fill();
+                
+                // 绘制核心
+                fireworksCtx.fillStyle = this.color.replace(/[\d.]+\)$/g, '1)');
+                fireworksCtx.beginPath();
+                fireworksCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                fireworksCtx.fill();
+                
+                fireworksCtx.restore();
+            }
+
+            update() {
+                this.alpha -= this.decay;
+                // 添加轻微的移动
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+                return this.alpha > 0;
+            }
+        }
+
+        let particles = [];
+        let winningPieces = [];
+        let isAnimating = false;
+        let gameEnded = false;  // 添加游戏结束标志
+        let animationFrame;
+        let lastMove = null;
+        let isPlayerTurn = true; // 添加玩家回合标志
+        let lastMoves = []; // 记录最后两步棋
+
+        function createFirework(x, y) {
+            const colorSchemes = [
+                'rgba(255, 100, 100, 1)', // 更亮的红色
+                'rgba(255, 200, 0, 1)',   // 更亮的橙色
+                'rgba(255, 255, 100, 1)', // 更亮的黄色
+                'rgba(100, 255, 100, 1)', // 更亮的绿色
+                'rgba(100, 200, 255, 1)', // 更亮的蓝色
+                'rgba(255, 100, 255, 1)'  // 更亮的紫色
+            ];
+            
+            try {
+                const particleCount = 50; // 适当增加粒子数量
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const color = colorSchemes[Math.floor(Math.random() * colorSchemes.length)];
+                    const particle = new Particle(x, y, color);
+                    particles.push(particle);
+                }
+            } catch (error) {
+                console.error('创建烟花效果时出错:', error);
+            }
+        }
+
+        function animateFireworks() {
+            if (!isAnimating) return;
+            
+            // 完全清除画布
+            fireworksCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+            
+            // 更新和绘制所有粒子
+            particles = particles.filter(particle => {
+                particle.update();
+                particle.draw();
+                return particle.alpha > 0;
+            });
+            
+            // 控制烟花生成的范围，主要在棋盘周围
+            if (Math.random() < 0.05 && particles.length < 500) {
+                const boardRect = canvas.getBoundingClientRect();
+                const centerX = boardRect.left + boardRect.width / 2;
+                const centerY = boardRect.top + boardRect.height / 2;
+                const radius = Math.max(boardRect.width, boardRect.height) * 0.6;
+                
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * radius;
+                const x = centerX + Math.cos(angle) * distance;
+                const y = centerY + Math.sin(angle) * distance;
+                
+                createFirework(x, y);
+            }
+            
+            requestAnimationFrame(animateFireworks);
+        }
+
+        function startVictoryAnimation(winner, winningRow, winningCol) {
+            if (isAnimating) return;
+            
+            isAnimating = true;
+            gameEnded = true;
+            isPlayerTurn = false;
+            winningPieces = [];
+            particles = [];
+            
+            try {
+                // 找出获胜的五个棋子
+                const board = game_state.board;
+                const directions = [[1,0], [0,1], [1,1], [1,-1]];
+                
+                for (const [dx, dy] of directions) {
+                    let count = 1;
+                    let pieces = [{row: winningRow, col: winningCol}];
+                    
+                    // 正向检查
+                    let x = winningRow + dx;
+                    let y = winningCol + dy;
+                    while (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && board[x][y] === board[winningRow][winningCol]) {
+                        pieces.push({row: x, col: y});
+                        count++;
+                        x += dx;
+                        y += dy;
+                    }
+                    
+                    // 反向检查
+                    x = winningRow - dx;
+                    y = winningCol - dy;
+                    while (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && board[x][y] === board[winningRow][winningCol]) {
+                        pieces.push({row: x, col: y});
+                        count++;
+                        x -= dx;
+                        y -= dy;
+                    }
+                    
+                    if (count >= 5) {
+                        winningPieces = pieces;
+                        break;
+                    }
+                }
+
+                // 显示胜利文字
+                const victoryText = document.getElementById('victoryText');
+                victoryText.textContent = `${winner === 'black' ? '黑棋' : '白棋'}获胜！`;
+                victoryText.classList.add('show');
+
+                // 获取棋盘的位置和大小
+                const boardRect = canvas.getBoundingClientRect();
+                const centerX = boardRect.left + boardRect.width / 2;
+                const centerY = boardRect.top + boardRect.height / 2;
+
+                // 创建环形烟花
+                const numFireworks = 6; // 减少初始烟花数量
+                const radius = Math.min(boardRect.width, boardRect.height) * 0.5;
+                
+                for (let i = 0; i < numFireworks; i++) {
+                    const angle = (i / numFireworks) * Math.PI * 2;
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = centerY + Math.sin(angle) * radius;
+                    
+                    setTimeout(() => {
+                        if (isAnimating) {
+                            createFirework(x, y);
+                        }
+                    }, i * 100); // 减少间隔时间
+                }
+
+                if (!animationFrame) {
+                    animateFireworks();
+                }
+            } catch (error) {
+                console.error('启动胜利动画时出错:', error);
+                isAnimating = false;
+                gameEnded = true;
+            }
+        }
+
+        function stopAnimation() {
+            isAnimating = false;
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+                animationFrame = null;
+            }
+            particles = [];
+            winningPieces = [];
+        }
+
+        // 修改重置游戏函数
+        function resetGame() {
+            try {
+                stopAnimation(); // 停止所有动画
+                
+                // 清除烟花画布
+                fireworksCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+                particles = [];
+                winningPieces = [];
+                
+                // 重置游戏状态
+                game_state = {
+                    board: Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null)),
+                    current_player: 'black'
+                };
+                
+                isPlayerTurn = true;
+                gameEnded = false;
+                lastMove = null;
+                lastMoves = []; // 清空悔棋记录
+                
+                // 禁用悔棋按钮
+                document.getElementById('undoBtn').disabled = true;
+                
+                // 移除最后落子点标记
+                const lastMoveMarker = document.querySelector('.last-move');
+                if (lastMoveMarker) {
+                    lastMoveMarker.remove();
+                }
+                
+                // 重置UI元素
+                document.getElementById('victoryText').classList.remove('show');
+                document.getElementById('drawText').classList.remove('show');
+                document.getElementById('status').textContent = '等待玩家（黑棋）下子';
+                
+                // 播放重置音效
+                playSound(resetSound);
+                
+                // 重新绘制棋盘
+                drawBoard();
+                
+                // 发送重置请求到服务器
+                fetch('/api/reset', { method: 'POST' })
+                    .catch(error => {
+                        console.error('重置游戏时发生错误:', error);
+                        alert('重置游戏时发生错误');
+                    });
+                    
+            } catch (error) {
+                console.error('重置游戏时发生错误:', error);
+                alert('重置游戏时发生错误');
+            }
+        }
+
+        // 窗口大小改变时调整烟花画布大小
+        window.addEventListener('resize', () => {
+            fireworksCanvas.width = window.innerWidth;
+            fireworksCanvas.height = window.innerHeight;
+            initWoodTexture(); // 重新生成木纹纹理
+            drawBoard();
+        });
+
+        // 初始化
+        initWoodTexture();
+        drawBoard();
+        
+        // 初始化时获取游戏状态
+        fetch('/api/reset', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                updateBoard(data.board);
+                currentPlayer = data.current_player;
+            })
+            .catch(error => {
+                console.error('初始化错误:', error);
+            });
+
+        // 修改动画循环函数
+        function animate() {
+            if (!gameEnded) {
+                drawBoard();
+                // 重新绘制所有棋子
+                for (let row = 0; row < BOARD_SIZE; row++) {
+                    for (let col = 0; col < BOARD_SIZE; col++) {
+                        if (game_state.board[row][col]) {
+                            draw3DPiece(
+                                GRID_PADDING + col * CELL_SIZE,
+                                GRID_PADDING + row * CELL_SIZE,
+                                game_state.board[row][col] === 'black'
+                            );
+                        }
+                    }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        // 添加鼠标移动事件监听
+        canvas.addEventListener('mousemove', (e) => {
+            if (!gameEnded && isPlayerTurn) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const col = Math.round((x - GRID_PADDING) / CELL_SIZE);
+                const row = Math.round((y - GRID_PADDING) / CELL_SIZE);
+                
+                if (col >= 0 && col < BOARD_SIZE && row >= 0 && row < BOARD_SIZE && !game_state.board[row][col]) {
+                    hoverPos = [col, row];
+                } else {
+                    hoverPos = null;
+                }
+            } else {
+                hoverPos = null;
+            }
+        });
+
+        canvas.addEventListener('mouseout', () => {
+            hoverPos = null;
+        });
+
+        // 启动动画循环
+        animate();
+
+        function showLastMove(row, col) {
+            // 移除之前的最后一步标记
+            const oldMarker = document.querySelector('.last-move');
+            if (oldMarker) {
+                oldMarker.remove();
+            }
+            
+            // 添加新的最后一步标记
+            if (row !== null && col !== null) {
+                const marker = document.createElement('div');
+                marker.className = 'last-move';
+                marker.style.left = (GRID_PADDING + col * CELL_SIZE) + 'px';
+                marker.style.top = (GRID_PADDING + row * CELL_SIZE) + 'px';
+                canvas.parentElement.appendChild(marker);
+            }
+        }
+
+        // 添加音效播放函数
+        function playSound(sound) {
+            try {
+                if (soundEnabled && sound) {
+                    // 重置音频到开始位置
+                    sound.currentTime = 0;
+                    // 播放音效
+                    sound.play().catch(error => {
+                        console.error('播放音效时出错:', error);
+                    });
+                }
+            } catch (error) {
+                console.error('播放音效时出错:', error);
+            }
+        }
+
+        // 修改音效开关函数
+        function toggleSound() {
+            try {
+                soundEnabled = !soundEnabled;
+                const soundToggle = document.getElementById('soundToggle');
+                if (soundToggle) {
+                    soundToggle.setAttribute('aria-label', `音效：${soundEnabled ? '开' : '关'}`);
+                    soundToggle.classList.toggle('muted', !soundEnabled);
+                }
+            } catch (error) {
+                console.error('切换音效时出错:', error);
+            }
+        }
+
+        // 确保音频文件加载完成
+        function preloadAudio(audio) {
+            return new Promise((resolve, reject) => {
+                audio.addEventListener('canplaythrough', resolve, { once: true });
+                audio.addEventListener('error', reject);
+                audio.load();
+            });
+        }
+
+        // 初始化音频
+        async function initAudio() {
+            try {
+                await Promise.all([
+                    preloadAudio(pieceSound),
+                    preloadAudio(winSound),
+                    preloadAudio(resetSound)
+                ]);
+                console.log('音频文件加载完成');
+            } catch (error) {
+                console.error('加载音频文件时出错:', error);
+            }
+        }
+
+        // 在初始化部分调用音频初始化
+        initAudio();
+
+        // 添加点击事件处理
+        canvas.addEventListener('click', async (e) => {
+            // 如果游戏已结束，点击任何位置重新开始游戏
+            if (gameEnded) {
+                resetGame();
+                return;
+            }
+            
+            // 如果不是玩家回合，忽略点击
+            if (!isPlayerTurn) {
+                return;
+            }
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const col = Math.round((x - GRID_PADDING) / CELL_SIZE);
+            const row = Math.round((y - GRID_PADDING) / CELL_SIZE);
+            
+            if (col < 0 || col >= BOARD_SIZE || row < 0 || row >= BOARD_SIZE) {
+                return;
+            }
+
+            // 检查该位置是否已有棋子
+            if (game_state.board[row][col] !== null) {
+                return;
+            }
+            
+            try {
+                // 设置为AI回合
+                isPlayerTurn = false;
+                
+                // 记录玩家的移动
+                const playerMove = { row, col };
+                
+                // 立即更新棋盘显示黑子
+                game_state.board[row][col] = 'black';
+                updateBoard(game_state);
+                
+                // 播放落子音效
+                playSound(pieceSound);
+                
+                // 显示AI思考状态
+                document.getElementById('status').textContent = '电脑（白棋）正在思考...';
+                
+                // 添加1000ms延时
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const response = await fetch('/api/move', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ row, col })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    isPlayerTurn = true; // 恢复玩家回合
+                    document.getElementById('status').textContent = '等待玩家（黑棋）下子';
+                    alert(data.error);
+                    return;
+                }
+                
+                // 记录AI的移动
+                const aiMove = data.ai_move ? { row: data.ai_move[0], col: data.ai_move[1] } : null;
+                lastMoves.push([playerMove, aiMove]);
+                
+                // 启用悔棋按钮
+                document.getElementById('undoBtn').disabled = false;
+                
+                // 更新棋盘状态
+                updateBoard(data);
+
+                // 播放落子音效
+                playSound(pieceSound);
+                
+                if (data.status === 'win') {
+                    // 添加800ms延时
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                    playSound(winSound);
+                    startVictoryAnimation(data.winner, row, col);
+                    document.getElementById('status').textContent = '游戏结束';
+                    document.getElementById('undoBtn').disabled = true;
+                    gameEnded = true;
+                } else if (data.status === 'draw') {
+                    document.getElementById('drawText').classList.add('show');
+                    document.getElementById('undoBtn').disabled = true;
+                    gameEnded = true;
+                } else {
+                    document.getElementById('status').textContent = '等待玩家（黑棋）下子';
+                    isPlayerTurn = true; // 恢复玩家回合
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                isPlayerTurn = true; // 恢复玩家回合
+                alert('发生错误，请重试');
+            }
+        });
+
+        async function undoMove() {
+            if (!lastMoves.length || gameEnded || !isPlayerTurn) {
+                return;
+            }
+
+            try {
+                // 获取最后一组移动
+                const moves = lastMoves.pop();
+                if (moves) {
+                    const [playerMove, aiMove] = moves;
+                    
+                    // 先撤销白棋（AI）的最后一步
+                    if (aiMove) {
+                        // 清除白棋
+                        game_state.board[aiMove.row][aiMove.col] = null;
+                        // 立即更新显示
+                        drawBoard();
+                        playSound(resetSound);
+                        
+                        // 等待200毫秒
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+                    
+                    // 然后撤销黑棋（玩家）的最后一步
+                    game_state.board[playerMove.row][playerMove.col] = null;
+                    // 更新整个棋盘显示
+                    drawBoard();
+                    playSound(resetSound);
+                    
+                    // 更新状态
+                    document.getElementById('status').textContent = '等待玩家（黑棋）下子';
+                    isPlayerTurn = true;
+                    
+                    // 如果没有更多步骤可以悔棋，禁用悔棋按钮
+                    document.getElementById('undoBtn').disabled = !lastMoves.length;
+                    
+                    // 同步服务器状态
+                    try {
+                        const response = await fetch('/api/undo', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            }
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('服务器悔棋失败');
+                        }
+                        
+                        const data = await response.json();
+                        if (data.error) {
+                            throw new Error(data.error);
+                        }
+                        
+                        // 使用服务器返回的棋盘状态更新
+                        if (data.board) {
+                            game_state.board = data.board;
+                            drawBoard();
+                        }
+                    } catch (error) {
+                        console.error('同步服务器状态时出错:', error);
+                    }
+                }
+            } catch (error) {
+                console.error('悔棋时发生错误:', error);
+            }
+        }
+    </script>
+</body>
+</html> 
