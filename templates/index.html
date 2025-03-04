@@ -1053,14 +1053,14 @@
         animate();
 
         function showLastMove(row, col) {
-            // 移除之前的最后一步标记
-            const oldMarker = document.querySelector('.last-move');
-            if (oldMarker) {
-                oldMarker.remove();
-            }
+            // 移除所有现有的最后一步标记
+            const oldMarkers = document.querySelectorAll('.last-move');
+            oldMarkers.forEach(marker => marker.remove());
             
-            // 添加新的最后一步标记
-            if (row !== null && col !== null) {
+            // 只有当行列都有效时才添加新标记
+            if (row !== null && col !== null && 
+                row >= 0 && row < BOARD_SIZE && 
+                col >= 0 && col < BOARD_SIZE) {
                 const marker = document.createElement('div');
                 marker.className = 'last-move';
                 marker.style.left = (GRID_PADDING + col * CELL_SIZE) + 'px';
@@ -1192,7 +1192,7 @@
                 }
                 
                 // 记录AI的移动
-                const aiMove = data.ai_move ? { row: data.ai_move[0], col: data.ai_move[1] } : null;
+                const aiMove = data.last_move ? { row: data.last_move[0], col: data.last_move[1] } : null;
                 lastMoves.push([playerMove, aiMove]);
                 
                 // 启用悔棋按钮
@@ -1236,60 +1236,100 @@
             try {
                 // 获取最后一组移动
                 const moves = lastMoves.pop();
-                if (moves) {
-                    const [playerMove, aiMove] = moves;
+                if (!moves) return;
+
+                const [playerMove, aiMove] = moves;
+                
+                // 移除当前的最后落子标记
+                const lastMoveMarker = document.querySelector('.last-move');
+                if (lastMoveMarker) {
+                    lastMoveMarker.remove();
+                }
+                
+                // 先撤销AI的最后一步
+                if (aiMove) {
+                    game_state.board[aiMove.row][aiMove.col] = null;
+                }
+                
+                // 然后撤销玩家的最后一步
+                game_state.board[playerMove.row][playerMove.col] = null;
+                
+                // 重新绘制棋盘和所有棋子
+                drawBoard();
+                for (let row = 0; row < BOARD_SIZE; row++) {
+                    for (let col = 0; col < BOARD_SIZE; col++) {
+                        if (game_state.board[row][col]) {
+                            draw3DPiece(
+                                GRID_PADDING + col * CELL_SIZE,
+                                GRID_PADDING + row * CELL_SIZE,
+                                game_state.board[row][col] === 'black'
+                            );
+                        }
+                    }
+                }
+                
+                // 如果还有之前的落子，显示上一步AI的标记
+                if (lastMoves.length > 0) {
+                    const previousMove = lastMoves[lastMoves.length - 1];
+                    if (previousMove[1]) {
+                        showLastMove(previousMove[1].row, previousMove[1].col);
+                    }
+                }
+                
+                playSound(resetSound);
+                
+                // 更新状态
+                document.getElementById('status').textContent = '等待玩家（黑棋）下子';
+                isPlayerTurn = true;
+                
+                // 如果没有更多步骤可以悔棋，禁用悔棋按钮
+                document.getElementById('undoBtn').disabled = !lastMoves.length;
+                
+                // 同步服务器状态
+                try {
+                    const response = await fetch('/api/undo', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
                     
-                    // 先撤销白棋（AI）的最后一步
-                    if (aiMove) {
-                        // 清除白棋
-                        game_state.board[aiMove.row][aiMove.col] = null;
-                        // 立即更新显示
+                    if (!response.ok) {
+                        throw new Error('服务器悔棋失败');
+                    }
+                    
+                    const data = await response.json();
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    // 使用服务器返回的棋盘状态更新
+                    if (data.board) {
+                        game_state.board = data.board;
+                        // 重新绘制棋盘和所有棋子
                         drawBoard();
-                        playSound(resetSound);
-                        
-                        // 等待200毫秒
-                        await new Promise(resolve => setTimeout(resolve, 200));
-                    }
-                    
-                    // 然后撤销黑棋（玩家）的最后一步
-                    game_state.board[playerMove.row][playerMove.col] = null;
-                    // 更新整个棋盘显示
-                    drawBoard();
-                    playSound(resetSound);
-                    
-                    // 更新状态
-                    document.getElementById('status').textContent = '等待玩家（黑棋）下子';
-                    isPlayerTurn = true;
-                    
-                    // 如果没有更多步骤可以悔棋，禁用悔棋按钮
-                    document.getElementById('undoBtn').disabled = !lastMoves.length;
-                    
-                    // 同步服务器状态
-                    try {
-                        const response = await fetch('/api/undo', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
+                        for (let row = 0; row < BOARD_SIZE; row++) {
+                            for (let col = 0; col < BOARD_SIZE; col++) {
+                                if (game_state.board[row][col]) {
+                                    draw3DPiece(
+                                        GRID_PADDING + col * CELL_SIZE,
+                                        GRID_PADDING + row * CELL_SIZE,
+                                        game_state.board[row][col] === 'black'
+                                    );
+                                }
                             }
-                        });
-                        
-                        if (!response.ok) {
-                            throw new Error('服务器悔棋失败');
                         }
                         
-                        const data = await response.json();
-                        if (data.error) {
-                            throw new Error(data.error);
+                        // 重新显示上一步AI的标记
+                        if (lastMoves.length > 0) {
+                            const previousMove = lastMoves[lastMoves.length - 1];
+                            if (previousMove[1]) {
+                                showLastMove(previousMove[1].row, previousMove[1].col);
+                            }
                         }
-                        
-                        // 使用服务器返回的棋盘状态更新
-                        if (data.board) {
-                            game_state.board = data.board;
-                            drawBoard();
-                        }
-                    } catch (error) {
-                        console.error('同步服务器状态时出错:', error);
                     }
+                } catch (error) {
+                    console.error('同步服务器状态时出错:', error);
                 }
             } catch (error) {
                 console.error('悔棋时发生错误:', error);
