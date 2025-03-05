@@ -27,7 +27,7 @@
 - 一键重开
 
 ## 游戏截图
-![游戏界面](screenshots/gameplay.png)
+![游戏界面](https://raw.githubusercontent.com/boshi202/gomoku/master/screenshots/gameplay.png)
 *游戏运行界面：展示了木纹棋盘、3D棋子效果、最后落子标记（红点）以及操作按钮*
 
 ## 技术栈
