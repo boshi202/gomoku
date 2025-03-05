@@ -605,25 +605,28 @@
 
         // 修改更新棋盘函数
         function updateBoard(data) {
-            if (typeof data === 'object' && data !== null) {
-                // 如果传入的是对象，使用data.board
-                if (data.board) {
-                    game_state.board = data.board;
-                } else {
-                    // 如果直接传入的是棋盘数据
-                    game_state.board = data;
-                }
+            // 确保data是一个对象
+            if (typeof data !== 'object' || data === null) {
+                data = { board: data };
             }
             
+            // 更新棋盘状态
+            if (data.board) {
+                game_state.board = data.board;
+            }
+            
+            // 重新绘制棋盘
             drawBoard();
             
             // 绘制所有棋子
             for (let row = 0; row < BOARD_SIZE; row++) {
                 for (let col = 0; col < BOARD_SIZE; col++) {
                     if (game_state.board[row][col]) {
-                        const x = GRID_PADDING + col * CELL_SIZE;
-                        const y = GRID_PADDING + row * CELL_SIZE;
-                        draw3DPiece(x, y, game_state.board[row][col] === 'black');
+                        draw3DPiece(
+                            GRID_PADDING + col * CELL_SIZE,
+                            GRID_PADDING + row * CELL_SIZE,
+                            game_state.board[row][col] === 'black'
+                        );
                     }
                 }
             }
@@ -998,7 +1001,10 @@
         fetch('/api/reset', { method: 'POST' })
             .then(response => response.json())
             .then(data => {
-                updateBoard(data.board);
+                updateBoard({
+                    board: data.board,
+                    last_move: data.last_move
+                });
                 currentPlayer = data.current_player;
             })
             .catch(error => {
@@ -1163,7 +1169,10 @@
                 
                 // 立即更新棋盘显示黑子
                 game_state.board[row][col] = 'black';
-                updateBoard(game_state);
+                updateBoard({
+                    board: game_state.board,
+                    last_move: [row, col]
+                });
                 
                 // 播放落子音效
                 playSound(pieceSound);
@@ -1234,45 +1243,52 @@
             }
 
             try {
-                // 获取最后一组移动
-                const moves = lastMoves.pop();
-                if (!moves) return;
-
-                const [playerMove, aiMove] = moves;
-                
                 // 移除当前的最后落子标记
                 const lastMoveMarker = document.querySelector('.last-move');
                 if (lastMoveMarker) {
                     lastMoveMarker.remove();
                 }
+
+                // 同步服务器状态
+                const response = await fetch('/api/undo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
                 
-                // 先撤销AI的最后一步
-                if (aiMove) {
-                    game_state.board[aiMove.row][aiMove.col] = null;
+                if (!response.ok) {
+                    throw new Error('服务器悔棋失败');
                 }
                 
-                // 然后撤销玩家的最后一步
-                game_state.board[playerMove.row][playerMove.col] = null;
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(data.error);
+                }
                 
-                // 重新绘制棋盘和所有棋子
-                drawBoard();
-                for (let row = 0; row < BOARD_SIZE; row++) {
-                    for (let col = 0; col < BOARD_SIZE; col++) {
-                        if (game_state.board[row][col]) {
-                            draw3DPiece(
-                                GRID_PADDING + col * CELL_SIZE,
-                                GRID_PADDING + row * CELL_SIZE,
-                                game_state.board[row][col] === 'black'
-                            );
+                // 获取最后一组移动并从历史记录中移除
+                lastMoves.pop();
+                
+                // 使用服务器返回的棋盘状态更新
+                if (data.board) {
+                    game_state.board = data.board;
+                    // 重新绘制棋盘和所有棋子
+                    drawBoard();
+                    for (let row = 0; row < BOARD_SIZE; row++) {
+                        for (let col = 0; col < BOARD_SIZE; col++) {
+                            if (game_state.board[row][col]) {
+                                draw3DPiece(
+                                    GRID_PADDING + col * CELL_SIZE,
+                                    GRID_PADDING + row * CELL_SIZE,
+                                    game_state.board[row][col] === 'black'
+                                );
+                            }
                         }
                     }
-                }
-                
-                // 如果还有之前的落子，显示上一步AI的标记
-                if (lastMoves.length > 0) {
-                    const previousMove = lastMoves[lastMoves.length - 1];
-                    if (previousMove[1]) {
-                        showLastMove(previousMove[1].row, previousMove[1].col);
+                    
+                    // 显示服务器返回的最后一步标记
+                    if (data.last_move) {
+                        showLastMove(data.last_move[0], data.last_move[1]);
                     }
                 }
                 
@@ -1285,52 +1301,6 @@
                 // 如果没有更多步骤可以悔棋，禁用悔棋按钮
                 document.getElementById('undoBtn').disabled = !lastMoves.length;
                 
-                // 同步服务器状态
-                try {
-                    const response = await fetch('/api/undo', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('服务器悔棋失败');
-                    }
-                    
-                    const data = await response.json();
-                    if (data.error) {
-                        throw new Error(data.error);
-                    }
-                    
-                    // 使用服务器返回的棋盘状态更新
-                    if (data.board) {
-                        game_state.board = data.board;
-                        // 重新绘制棋盘和所有棋子
-                        drawBoard();
-                        for (let row = 0; row < BOARD_SIZE; row++) {
-                            for (let col = 0; col < BOARD_SIZE; col++) {
-                                if (game_state.board[row][col]) {
-                                    draw3DPiece(
-                                        GRID_PADDING + col * CELL_SIZE,
-                                        GRID_PADDING + row * CELL_SIZE,
-                                        game_state.board[row][col] === 'black'
-                                    );
-                                }
-                            }
-                        }
-                        
-                        // 重新显示上一步AI的标记
-                        if (lastMoves.length > 0) {
-                            const previousMove = lastMoves[lastMoves.length - 1];
-                            if (previousMove[1]) {
-                                showLastMove(previousMove[1].row, previousMove[1].col);
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error('同步服务器状态时出错:', error);
-                }
             } catch (error) {
                 console.error('悔棋时发生错误:', error);
             }
