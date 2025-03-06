@@ -44,8 +44,9 @@ web_gomoku/
 │   └── index.html     # 游戏主页面
 ├── static/            # 静态资源
 │   ├── images/        # 图片资源
-│   └── sounds/        # 音效文件
-└── logs/              # 日志目录
+│   ├── sounds/        # 音效文件
+│   └── favicon.ico    # 网站图标
+└── vercel.json        # Vercel部署配置
 ```
 
 ## 安装和运行
@@ -53,7 +54,7 @@ web_gomoku/
 1. 确保已安装Python 3.x
 2. 安装依赖：
 ```bash
-pip install flask
+pip install -r requirements.txt
 ```
 
 3. 运行服务器：
