@@ -346,6 +346,10 @@ def check_win(row, col):
 def index():
     return render_template('index.html')
 
+@app.get("/favicon.ico")
+def favicon():
+    return {"file": static_dir+"/favicon.ico"}  # or: return RedirectResponse("static/favicon.ico")
+
 @app.route('/api/move', methods=['POST'])
 def make_move():
     try:
