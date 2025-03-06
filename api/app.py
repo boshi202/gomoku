@@ -5,17 +5,12 @@ import random
 import logging
 from datetime import datetime
 
-# 配置日志
-log_dir = 'logs'
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-
+# 修改日志配置
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[
-        logging.FileHandler(os.path.join(log_dir, f'app_{datetime.now().strftime("%Y%m%d")}.log')),
-        logging.StreamHandler()
+        logging.StreamHandler()  # 只使用控制台输出
     ]
 )
 logger = logging.getLogger(__name__)
