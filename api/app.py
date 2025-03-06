@@ -20,8 +20,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# 获取当前文件所在目录的上级目录路径
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 # 确保static目录存在
-static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+static_dir = os.path.join(base_dir, 'static')
 if not os.path.exists(static_dir):
     os.makedirs(static_dir)
     if not os.path.exists(os.path.join(static_dir, 'images')):
@@ -29,7 +32,11 @@ if not os.path.exists(static_dir):
     if not os.path.exists(os.path.join(static_dir, 'sounds')):
         os.makedirs(os.path.join(static_dir, 'sounds'))
 
-app = Flask(__name__, static_folder='static', static_url_path='/static')
+# 初始化Flask应用，设置模板和静态文件目录
+app = Flask(__name__, 
+           template_folder=os.path.join(base_dir, 'templates'),
+           static_folder=os.path.join(base_dir, 'static'),
+           static_url_path='/static')
 
 # 游戏状态
 BOARD_SIZE = 15

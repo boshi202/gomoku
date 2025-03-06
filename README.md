@@ -38,13 +38,14 @@
 ## 项目结构
 ```
 web_gomoku/
-├── app.py              # Flask后端服务
+├── api/               # API目录
+│   └── app.py        # Flask后端服务
 ├── templates/          
-│   └── index.html      # 游戏主页面
-├── static/             # 静态资源
-│   ├── images/         # 图片资源
-│   └── sounds/         # 音效文件
-└── logs/               # 日志目录
+│   └── index.html     # 游戏主页面
+├── static/            # 静态资源
+│   ├── images/        # 图片资源
+│   └── sounds/        # 音效文件
+└── logs/              # 日志目录
 ```
 
 ## 安装和运行
@@ -57,7 +58,7 @@ pip install flask
 
 3. 运行服务器：
 ```bash
-python app.py
+python api/app.py
 ```
 
 4. 在浏览器中访问：`http://localhost:6688`
@@ -82,4 +83,4 @@ MIT License
 ## 注意事项
 - 建议使用现代浏览器（Chrome, Firefox, Safari等）以获得最佳体验
 - 确保浏览器开启了JavaScript
-- 如遇到音效无法播放，请检查浏览器的自动播放设置 
+- 如遇到音效无法播放，请检查浏览器的自动播放设置
